@@ -2,28 +2,70 @@ package main
 
 import (
 	"fmt"
+	"github.com/jessevdk/go-flags"
+	"net/http"
 	"os"
 )
 
-func usage() {
-	tmp := "webbench [option]... URL\n"
-	tmp += "  -f|--force               Don't wait for reply from server.\n"
-	tmp += "  -r|--reload              Send reload request - Pragma: no-cache.\n"
-	tmp += "  -t|--time <sec>          Run benchmark for <sec> seconds. Default 30.\n"
-	tmp += "  -p|--proxy <server:port> Use proxy server for request.\n"
-	tmp += "  -c|--clients <n>         Run <n> HTTP clients at once. Default one.\n"
-	tmp += "  -9|--http09              Use HTTP/0.9 style requests.\n"
-	tmp += "  -1|--http10              Use HTTP/1.0 protocol.\n"
-	tmp += "  -2|--http11              Use HTTP/1.1 protocol.\n"
-	tmp += "  --get                    Use GET request method.\n"
-	tmp += "  --head                   Use HEAD request method.\n"
-	tmp += "  --options                Use OPTIONS request method.\n"
-	tmp += "  --trace                  Use TRACE request method.\n"
-	tmp += "  -?|-h|--help             This information.\n"
-	tmp += "  -V|--version             Display program version.\n"
-	fmt.Fprintf(os.Stderr, tmp)
+type Options struct {
+	Url     string `short:"u" long:"url" description:"URL" required:"true"`
+	Fore    bool   `short:"f" long:"fore" description:"Don't wait for reply from server."`
+	Reload  bool   `short:"r" long:"reload" description:"Send reload request - Pragma: no-cache."`
+	Time    int    `short:"t" long:"time" description:"Run benchmark for <sec> seconds. Default 30."`
+	Client  int    `short:"c" long:"client" description:"Run <n> HTTP clients at once. Default one."`
+	Http09  bool   `short:"9" long:"http09" description:"Use HTTP/0.9 style requests."`
+	Http10  bool   `short:"1" long:"http10" description:"Use HTTP/1.0 protocol."`
+	Http11  bool   `short:"2" long:"http11" description:"Use HTTP/1.1 protocol."`
+	Proxy   string `short:"p" long:"proxy" description:"Use proxy server for request."`
+	Get     bool   `long:"get" description:"Use GET request method."`
+	Head    bool   `long:"head" description:"Use HEAD request method."`
+	Options bool   `long:"options" description:"Use OPTIONS request method."`
+	Trace   bool   `long:"trace" description:"Use TRACE request method."`
+	Version bool   `short:"v" long:"version" description:"Display program version."`
+}
+
+var parser *flags.Parser
+var op Options
+
+func init() {
+	parser = flags.NewParser(&op, flags.Default)
+	parser.ParseArgs(os.Args)
+}
+
+func Usage() {
+	parser.WriteHelp(os.Stderr)
+}
+
+func Start(url string) {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+	if op.Http09 == true {
+		req.Header.Set("", "")
+	} else if op.Http10 == true {
+		req.Header.Set("", "")
+	} else if op.Http11 == true {
+		req.Header.Set("", "")
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+
+	if op.Trace {
+		fmt.Println("Status:" + resp.Status)
+	}
+
 }
 
 func main() {
-	usage()
+
+	if op.Url != "" {
+		Start(op.Url)
+	} else {
+		Usage()
+	}
 }
