@@ -5,6 +5,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"net/http"
 	"os"
+	"time"
 )
 
 type Options struct {
@@ -24,8 +25,19 @@ type Options struct {
 	Version bool   `short:"v" long:"version" description:"Display program version."`
 }
 
-var parser *flags.Parser
-var op Options
+const (
+	DEFAULT_RUN_TIME     = 10 * time.Second
+	DEFAULT_CLIENT_COUNT = 1
+)
+
+var (
+	parser *flags.Parser
+	op     Options
+	c      = make(chan int)
+	after  = time.After(30 * time.Second)
+	count  = 0
+	failed = 0
+)
 
 func init() {
 	parser = flags.NewParser(&op, flags.Default)
@@ -36,24 +48,18 @@ func Usage() {
 	parser.WriteHelp(os.Stderr)
 }
 
-func Start(url string) {
+func Get(url string) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return
 	}
-	if op.Http09 == true {
-		req.Header.Set("", "")
-	} else if op.Http10 == true {
-		req.Header.Set("", "")
-	} else if op.Http11 == true {
-		req.Header.Set("", "")
-	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return
+		failed += 1
 	}
+	count += 1
 
 	if op.Trace {
 		fmt.Println("Status:" + resp.Status)
@@ -61,11 +67,35 @@ func Start(url string) {
 
 }
 
-func main() {
+func Keep() {
+	for {
+		select {
+		case <-c:
+		case <-after:
+			fmt.Printf("Speed=%d pages/min\n", count*2)
+			fmt.Printf("Request: %d successed, %d failed", count, failed)
+			fmt.Println("done !")
+			return
+		}
 
+	}
+}
+
+func Run() {
+	for {
+		select {
+		case c <- 1:
+			Get(op.Url)
+		}
+	}
+}
+
+func main() {
 	if op.Url != "" {
-		Start(op.Url)
+		go Run()
+		Keep()
 	} else {
+		fmt.Println(op.Client)
 		Usage()
 	}
 }
